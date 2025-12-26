@@ -1,0 +1,41 @@
+pipeline {
+       agent any
+       environment {
+             IMAGE_NAME = "safaah44/spring-hello"
+       }
+       stage('Checkout') {
+             steps {
+                 git url : 'https://github.com/Safaa1033/spring-hello', branch: 'main'
+             }
+       }
+       stage('Build & Test) {
+              steps {
+                  sh 'mvn clean package'
+              }
+       }
+       stage('Docker Build') {
+              steps {
+                 sh 'docker build -t $IMAGE_NAME:latest .'
+              }
+       }
+       stage('Docker Push') {
+              steps {
+                  withCredentials([usernamePassword(
+                  	credentialsId: 'dockerhub-creds',
+                  	usernameVariable: 'USER',
+                  	passwordVariable: 'PASS'
+                  )]) {
+                       sh '''
+                       echo $PASS | docker login -u $USER --password-stdin
+                       docker push $IMAGE_NAME:latest
+                       '''
+                      }
+              }
+       }
+       stage('Deploy Kubernetes') {
+                steps {
+                     sh 'kubectl apply -f k8s/'
+                }
+       }
+
+}                

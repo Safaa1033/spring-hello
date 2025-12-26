@@ -1,0 +1,54 @@
+pipeline {
+       agent any
+       environment {
+             IMAGE_NAME = "safaah44/spring-hello"
+       }
+       stage('Checkout') {
+             steps {
+                 git url : 'https://github.com/Safaa1033/spring-hello', branch: 'main'
+             }
+       }
+       stage('Build & Test') { // Correction : la parenthèse était manquante
+              steps {
+                  sh 'mvn clean package'
+              }
+       }
+       stage('Docker Build') {
+              steps {
+                 sh 'docker build -t $IMAGE_NAME:latest .'
+              }
+       }
+       stage('Docker Push') {
+              steps {
+                  withCredentials([usernamePassword(
+                        credentialsId: 'dockerhub-creds',
+                        usernameVariable: 'USER',
+                        passwordVariable: 'PASS'
+                  )]) {
+                       sh '''
+                       echo $PASS | docker login -u $USER --password-stdin
+                       docker push $IMAGE_NAME:latest
+                       '''
+                      }
+              }
+       }
+       stage('Deploy Kubernetes') {
+            agent {
+                // Cette étape s'exécutera dans un conteneur Docker dédié avec kubectl
+                docker {
+                    image 'bitnami/kubectl:latest' // Utilise une image qui contient kubectl
+                    // Monte le répertoire .kube de l'hôte dans le conteneur
+                    // et permet au conteneur de partager le réseau de l'hôte
+                    args '-v /home/safaa/.kube:/root/.kube --network host' // IMPORTANT : Adaptez le chemin /home/safaa/.kube à votre machine hôte
+                }
+            }
+            steps {
+                 // S'assure que le contexte Minikube est utilisé (si plusieurs configurations existent)
+                 sh 'kubectl config use minikube'
+                 // Applique les manifestes Kubernetes
+                 sh 'kubectl apply -f k8s/'
+                 // Optionnel : Vérifie le statut des pods déployés
+                 sh 'kubectl get pods -n default -l app=spring-hello'
+            }
+       }
+}
