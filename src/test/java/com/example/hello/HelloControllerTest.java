@@ -20,6 +20,6 @@ class HelloControllerTest {
     void helloEndpointReturnsMessage() throws Exception {
         mockMvc.perform(get("/hello"))
                 .andExpect(status().isOk())
-                .andExpect(content().string("Bonsoir tout le monde v6.7"));
+                .andExpect(content().string("Bonsoir tout le monde v6.9"));
     }
 }
